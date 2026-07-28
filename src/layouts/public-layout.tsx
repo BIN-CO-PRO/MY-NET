@@ -1,8 +1,11 @@
 import { Outlet, ScrollRestoration } from "react-router-dom";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { useVisitorTracking } from "@/lib/use-visitor";
 
 export function PublicLayout() {
+  useVisitorTracking();
+
   return (
     <div className="relative min-h-screen flex flex-col">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-grid opacity-40" />

@@ -13,6 +13,7 @@ import AdminOverview from "@/pages/admin/overview";
 import AdminFiles from "@/pages/admin/files";
 import AdminProjects from "@/pages/admin/projects";
 import AdminProfile from "@/pages/admin/profile";
+import AdminVisitors from "@/pages/admin/visitors";
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="files" element={<AdminFiles />} />
         <Route path="projects" element={<AdminProjects />} />
         <Route path="profile" element={<AdminProfile />} />
+        <Route path="visitors" element={<AdminVisitors />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

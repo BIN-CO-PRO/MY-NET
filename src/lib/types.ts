@@ -74,3 +74,13 @@ export type ProjectInput = {
   repo_url: string | null;
   file_ids: string[];
 };
+
+export type Visitor = {
+  id: string;
+  ip: string | null;
+  country: string | null;
+  device: string | null;
+  browser: string | null;
+  page: string;
+  created_at: string;
+};
