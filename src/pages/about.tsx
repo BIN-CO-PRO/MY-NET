@@ -18,10 +18,12 @@ export default function AboutPage() {
               {profile.photo_url ? (
                 <img src={profile.photo_url} alt={profile.full_name} className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full items-center justify-center">
-                  <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent font-display text-5xl font-bold text-primary-foreground">
-                    {profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                  </div>
+                <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
+                  <img
+                    src="/assets/images/bin-logo_(1).png"
+                    alt="BIN Logo"
+                    className="h-32 w-32 rounded-2xl object-cover shadow-lg shadow-primary/20"
+                  />
                 </div>
               )}
             </div>

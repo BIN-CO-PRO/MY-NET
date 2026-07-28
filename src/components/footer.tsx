@@ -13,9 +13,11 @@ export function Footer() {
         <div className="grid gap-10 md:grid-cols-4">
           <div className="md:col-span-2 space-y-3">
             <Link to="/" className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent font-display text-base font-bold text-primary-foreground">
-                B
-              </span>
+              <img
+                src="/assets/images/bin-logo_(1).png"
+                alt="BIN Logo"
+                className="h-9 w-9 rounded-lg object-cover shadow-sm"
+              />
               <span className="font-display text-base font-semibold">
                 Bizimana<span className="text-primary">.</span> Idea Nexus
               </span>

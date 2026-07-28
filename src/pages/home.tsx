@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, FolderOpen, FileText, Zap, Cpu, Car, Wrench } from "lucide-react";
+import { ArrowRight, Sparkles, FolderOpen, FileText, Zap, Brain, Car, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,8 @@ import type { Project, FileRecord } from "@/lib/types";
 import { CardSkeleton } from "@/components/ui/skeleton";
 
 const FOCUS = [
-  { icon: Cpu, label: "AI & Machine Learning", color: "text-primary" },
-  { icon: Car, label: "Electric Mobility", color: "text-accent" },
+  { icon: Brain, label: "AI & Prompt Engineering", color: "text-primary" },
+  { icon: Car, label: "Electric Vehicles", color: "text-accent" },
   { icon: Wrench, label: "Digital Fabrication", color: "text-primary" },
 ];
 
@@ -51,12 +51,12 @@ export default function HomePage() {
               <Sparkles className="h-3.5 w-3.5" /> Available for collaborations
             </Badge>
             <h1 className="font-display text-4xl md:text-6xl font-bold tracking-tight leading-[1.05]">
-              Building the future from{" "}
-              <span className="text-gradient-gold">Kigali</span> — one idea at a time.
+              Ideas into reality — from{" "}
+              <span className="text-gradient-gold">Kigali</span> to the world.
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-              {profile?.tagline}. I design and build AI systems, electric vehicles, and digital
-              fabrication tools that turn ambitious ideas into real, working artifacts.
+              {profile?.tagline}. I work across AI prompt engineering, EV diagnostics, and digital
+              fabrication — turning ambitious ideas into real, working artifacts.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <Button asChild size="lg">
@@ -74,9 +74,11 @@ export default function HomePage() {
               <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 to-accent/20 rounded-3xl blur-2xl" />
               <div className="relative rounded-3xl border border-border bg-card p-8 shadow-2xl">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent font-display text-2xl font-bold text-primary-foreground">
-                    BF
-                  </div>
+                  <img
+                    src="/assets/images/bin-logo_(1).png"
+                    alt="BIN Logo"
+                    className="h-16 w-16 rounded-2xl object-cover shadow-lg shadow-primary/20"
+                  />
                   <div>
                     <p className="font-display text-lg font-semibold">{profile?.full_name}</p>
                     <p className="text-sm text-muted-foreground">{profile?.location}</p>

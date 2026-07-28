@@ -42,9 +42,11 @@ export function Navbar() {
     >
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent font-display text-base font-bold text-primary-foreground shadow-md shadow-primary/30 transition-transform group-hover:scale-105">
-            B
-          </span>
+          <img
+            src="/assets/images/bin-logo_(1).png"
+            alt="BIN Logo"
+            className="h-9 w-9 rounded-lg object-cover shadow-md shadow-primary/20 transition-transform group-hover:scale-105"
+          />
           <span className="font-display text-base font-semibold tracking-tight">
             Bizimana<span className="text-primary">.</span>
             <span className="text-muted-foreground font-normal hidden sm:inline">Idea Nexus</span>
