@@ -37,19 +37,22 @@ export function Navbar() {
     <header
       className={cn(
         "sticky top-0 z-50 w-full transition-all duration-300",
-        scrolled ? "glass border-b border-border/60" : "bg-transparent"
+        scrolled ? "glass border-b border-border/60 shadow-sm" : "bg-transparent"
       )}
     >
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5 group">
-          <img
-            src="/assets/images/bin-logo_(1).png"
-            alt="BIN Logo"
-            className="h-9 w-9 rounded-lg object-cover shadow-md shadow-primary/20 transition-transform group-hover:scale-105"
-          />
+          <div className="relative">
+            <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+            <img
+              src="/assets/images/bin-logo_(1).png"
+              alt="BIN Logo"
+              className="relative h-9 w-9 rounded-lg object-cover shadow-md shadow-primary/20 transition-transform group-hover:scale-105"
+            />
+          </div>
           <span className="font-display text-base font-semibold tracking-tight">
             Bizimana<span className="text-primary">.</span>
-            <span className="text-muted-foreground font-normal hidden sm:inline">Idea Nexus</span>
+            <span className="text-muted-foreground font-normal hidden sm:inline"> Idea Nexus</span>
           </span>
         </Link>
 
@@ -61,14 +64,21 @@ export function Navbar() {
               end={l.to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "relative rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )
               }
             >
-              {l.label}
+              {({ isActive }) => (
+                <>
+                  {l.label}
+                  {isActive && (
+                    <span className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-primary" />
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
