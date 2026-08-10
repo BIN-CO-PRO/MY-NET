@@ -1,59 +1,78 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import { PublicLayout } from "@/layouts/public-layout";
-import { AdminLayout } from "@/layouts/admin-layout";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import { ToastContainer } from "@/components/ui/toast";
 import { ProtectedRoute } from "@/components/protected-route";
+import { CinematicBackground } from "@/components/cinematic-background";
+import { MessageBox } from "@/components/message-box";
+import { useVisitorTracking } from "@/lib/use-visitor-tracking";
+
 import HomePage from "@/pages/home";
-
-const AboutPage = lazy(() => import("@/pages/about"));
-const ProjectsPage = lazy(() => import("@/pages/projects"));
-const ProjectDetailPage = lazy(() => import("@/pages/project-detail"));
-const FilesPage = lazy(() => import("@/pages/files"));
-const ContactPage = lazy(() => import("@/pages/contact"));
-const LoginPage = lazy(() => import("@/pages/login"));
-const AdminOverview = lazy(() => import("@/pages/admin/overview"));
-const AdminFiles = lazy(() => import("@/pages/admin/files"));
-const AdminProjects = lazy(() => import("@/pages/admin/projects"));
-const AdminProfile = lazy(() => import("@/pages/admin/profile"));
-const AdminVisitors = lazy(() => import("@/pages/admin/visitors"));
-
-function PageFallback() {
-  return (
-    <div className="container py-24 flex items-center justify-center">
-      <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-    </div>
-  );
-}
+import AboutPage from "@/pages/about";
+import ProjectsPage from "@/pages/projects";
+import ProjectDetailPage from "@/pages/project-detail";
+import FilesPage from "@/pages/files";
+import ContactPage from "@/pages/contact";
+import LoginPage from "@/pages/login";
+import AdminLayout from "@/pages/admin/layout";
+import AdminOverview from "@/pages/admin/overview";
+import AdminFiles from "@/pages/admin/files";
+import AdminProjects from "@/pages/admin/projects";
+import AdminVisitors from "@/pages/admin/visitors";
+import AdminMessages from "@/pages/admin/messages";
+import AdminProfile from "@/pages/admin/profile";
+import NotFoundPage from "@/pages/not-found";
 
 export default function App() {
+  useVisitorTracking();
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith("/admin");
+
   return (
-    <Routes>
-      <Route element={<PublicLayout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<Suspense fallback={<PageFallback />}><AboutPage /></Suspense>} />
-        <Route path="/projects" element={<Suspense fallback={<PageFallback />}><ProjectsPage /></Suspense>} />
-        <Route path="/projects/:slug" element={<Suspense fallback={<PageFallback />}><ProjectDetailPage /></Suspense>} />
-        <Route path="/files" element={<Suspense fallback={<PageFallback />}><FilesPage /></Suspense>} />
-        <Route path="/contact" element={<Suspense fallback={<PageFallback />}><ContactPage /></Suspense>} />
-        <Route path="/login" element={<Suspense fallback={<PageFallback />}><LoginPage /></Suspense>} />
-      </Route>
-
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Suspense fallback={<PageFallback />}><AdminOverview /></Suspense>} />
-        <Route path="files" element={<Suspense fallback={<PageFallback />}><AdminFiles /></Suspense>} />
-        <Route path="projects" element={<Suspense fallback={<PageFallback />}><AdminProjects /></Suspense>} />
-        <Route path="profile" element={<Suspense fallback={<PageFallback />}><AdminProfile /></Suspense>} />
-        <Route path="visitors" element={<Suspense fallback={<PageFallback />}><AdminVisitors /></Suspense>} />
-      </Route>
-
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <div className="min-h-screen flex flex-col">
+      {!isAdmin && <CinematicBackground />}
+      <Navbar />
+      <main className="flex-1 pt-16">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:slug" element={<ProjectDetailPage />} />
+              <Route path="/files" element={<FilesPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminOverview />} />
+                <Route path="files" element={<AdminFiles />} />
+                <Route path="projects" element={<AdminProjects />} />
+                <Route path="visitors" element={<AdminVisitors />} />
+                <Route path="messages" element={<AdminMessages />} />
+                <Route path="profile" element={<AdminProfile />} />
+              </Route>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </motion.div>
+        </AnimatePresence>
+      </main>
+      <Footer />
+      <MessageBox />
+      <ToastContainer />
+    </div>
   );
 }

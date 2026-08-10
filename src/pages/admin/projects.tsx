@@ -1,178 +1,144 @@
-import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Plus, Pencil, Trash2, Search, Loader as Loader2, FolderOpen, Star, X } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from "react";
+import {
+  FolderOpen, Plus, Pencil, Trash2, Search, X, Save, Loader as Loader2, Star,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/toast";
-import { useFiles } from "@/lib/use-files";
-import { slugify, formatDate, cn } from "@/lib/utils";
-import type { Project, FileRecord } from "@/lib/types";
+import { formatDate, slugify } from "@/lib/utils";
+import { CardSkeleton } from "@/components/ui/skeleton";
+import type { Project } from "@/lib/types";
 
-const schema = z.object({
-  title: z.string().min(2, "Title is required"),
-  summary: z.string().min(5, "Add a short summary"),
-  description: z.string().min(10, "Add a description"),
-  category: z.string().min(1, "Category required"),
-  cover_url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  live_url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  repo_url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  tags: z.string().optional(),
-  featured: z.boolean(),
-});
-type FormValues = z.infer<typeof schema>;
+const EMPTY = {
+  title: "", slug: "", description: "", content: "", cover_image: "",
+  tags: "", technologies: "", is_featured: false, status: "published" as const,
+};
 
 export default function AdminProjects() {
   const { toast } = useToast();
-  const { files } = useFiles();
   const [projects, setProjects] = useState<Project[] | null>(null);
-  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<Project | null>(null);
-  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<typeof EMPTY | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [deleteProj, setDeleteProj] = useState<Project | null>(null);
 
-  const {
-    register, handleSubmit, reset, setValue, watch, formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { featured: false } });
-
-  const load = async () => {
-    setLoading(true);
+  const load = useCallback(async () => {
     const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
     setProjects(data ?? []);
-    setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
-  const filtered = useMemo(() => {
-    if (!projects) return null;
-    const q = query.toLowerCase();
-    return projects.filter((p) => !q || p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
-  }, [projects, query]);
-
-  const openNew = () => {
-    setEditing(null);
-    reset({ title: "", summary: "", description: "", category: "", cover_url: "", live_url: "", repo_url: "", tags: "", featured: false });
-    setSelectedFileIds([]);
-    setOpen(true);
-  };
-
+  const openNew = () => { setEditing({ ...EMPTY }); setEditId(null); };
   const openEdit = (p: Project) => {
-    setEditing(p);
-    reset({
-      title: p.title, summary: p.summary, description: p.description, category: p.category,
-      cover_url: p.cover_url ?? "", live_url: p.live_url ?? "", repo_url: p.repo_url ?? "",
-      tags: (p.tags ?? []).join(", "), featured: p.featured,
+    setEditing({
+      title: p.title, slug: p.slug, description: p.description ?? "", content: p.content ?? "",
+      cover_image: p.cover_image ?? "", tags: (p.tags ?? []).join(", "), technologies: (p.technologies ?? []).join(", "),
+      is_featured: p.is_featured, status: p.status as "published",
     });
-    setSelectedFileIds(p.file_ids ?? []);
-    setOpen(true);
+    setEditId(p.id);
   };
 
-  const onSubmit = async (v: FormValues) => {
+  const save = async () => {
+    if (!editing) return;
+    if (!editing.title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return; }
     setSaving(true);
-    const tags = (v.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+    const slug = editing.slug.trim() || slugify(editing.title);
+    const tags = editing.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const technologies = editing.technologies.split(",").map((t) => t.trim()).filter(Boolean);
+
     const payload = {
-      slug: slugify(v.title),
-      title: v.title,
-      summary: v.summary,
-      description: v.description,
-      category: v.category,
-      cover_url: v.cover_url || null,
-      live_url: v.live_url || null,
-      repo_url: v.repo_url || null,
-      tags,
-      featured: v.featured,
-      file_ids: selectedFileIds,
+      title: editing.title,
+      slug,
+      description: editing.description || null,
+      content: editing.content || null,
+      cover_image: editing.cover_image || null,
+      tags, technologies,
+      is_featured: editing.is_featured,
+      status: editing.status,
     };
-    let error;
-    if (editing) {
-      ({ error } = await supabase.from("projects").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editing.id));
-    } else {
-      ({ error } = await supabase.from("projects").insert(payload));
-    }
+
+    const { error } = editId
+      ? await supabase.from("projects").update(payload).eq("id", editId)
+      : await supabase.from("projects").insert(payload);
+
     setSaving(false);
-    if (error) {
-      toast({ title: "Save failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: editing ? "Project updated" : "Project created", variant: "success" });
-      setOpen(false);
-      load();
-    }
+    if (error) { toast({ title: "Save failed", description: error.message, variant: "destructive" }); return; }
+    setEditing(null);
+    setEditId(null);
+    load();
+    toast({ title: editId ? "Project updated" : "Project created", variant: "success" });
   };
 
-  const doDelete = async () => {
-    if (!confirmDelete) return;
-    const { error } = await supabase.from("projects").delete().eq("id", confirmDelete.id);
-    if (error) {
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Project deleted", variant: "success" });
-      load();
-    }
-    setConfirmDelete(null);
+  const confirmDelete = async () => {
+    if (!deleteProj) return;
+    const { error } = await supabase.from("projects").delete().eq("id", deleteProj.id);
+    if (error) { toast({ title: "Delete failed", description: error.message, variant: "destructive" }); return; }
+    setProjects((prev) => prev?.filter((p) => p.id !== deleteProj.id) ?? null);
+    setDeleteProj(null);
+    toast({ title: "Project deleted", variant: "destructive" });
   };
 
-  const toggleFile = (id: string) => {
-    setSelectedFileIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  };
+  const filtered = projects?.filter((p) => {
+    const q = query.toLowerCase();
+    return !q || p.title.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q);
+  }) ?? null;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground mt-1">Create, edit, and publish case studies.</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Projects Manager</h1>
+          <p className="text-muted-foreground mt-1">Create, edit, and manage your portfolio projects.</p>
         </div>
-        <Button onClick={openNew}><Plus className="h-4 w-4" /> New project</Button>
+        <Button onClick={openNew} className="group"><Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" /> New project</Button>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search projects…" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" />
+        <Input placeholder="Search projects…" value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9 max-w-sm" />
       </div>
 
-      {loading || !filtered ? (
-        <Card><CardContent className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></CardContent></Card>
+      {filtered === null ? (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <FolderOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-            <p className="font-medium">No projects yet.</p>
-            <p className="text-sm text-muted-foreground mt-1">Click "New project" to add your first case study.</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-dashed border-border p-16 text-center">
+          <FolderOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+          <p className="font-medium">No projects yet.</p>
+          <p className="text-sm text-muted-foreground mt-1">Click "New project" to create one.</p>
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((p) => (
-            <Card key={p.id} className="overflow-hidden">
-              <div className="aspect-[16/10] bg-gradient-to-br from-muted to-muted/30 overflow-hidden">
-                {p.cover_url ? <img src={p.cover_url} alt={p.title} className="h-full w-full object-cover" /> : (
+            <Card key={p.id} className="overflow-hidden hover:border-primary/40 transition-colors group">
+              <div className="aspect-[16/10] bg-gradient-to-br from-muted to-muted/20 overflow-hidden relative">
+                {p.cover_image ? (
+                  <img src={p.cover_image} alt={p.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
+                ) : (
                   <div className="flex h-full items-center justify-center text-muted-foreground"><FolderOpen className="h-8 w-8" /></div>
                 )}
+                {p.is_featured && <div className="absolute top-2 right-2"><Badge variant="accent"><Star className="h-3 w-3" /></Badge></div>}
               </div>
               <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{p.category}</Badge>
-                  {p.featured && <Badge variant="accent"><Star className="h-3 w-3" /> Featured</Badge>}
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-medium text-sm leading-tight">{p.title}</h3>
+                  <Badge variant={p.status === "published" ? "success" : "secondary"} className="capitalize shrink-0">{p.status}</Badge>
                 </div>
-                <h3 className="font-display font-semibold leading-tight">{p.title}</h3>
+                <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
                 <p className="text-xs text-muted-foreground">{formatDate(p.created_at)}</p>
-                <div className="flex gap-2 pt-1">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /> Edit</Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(p)} className="hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
+                <div className="flex gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(p)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteProj(p)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </CardContent>
             </Card>
@@ -180,103 +146,68 @@ export default function AdminProjects() {
         </div>
       )}
 
-      {/* Editor dialog */}
-      <Dialog open={open} onOpenChange={(o) => !o && setOpen(false)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin">
+      {/* Edit/Create dialog */}
+      <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit project" : "New project"}</DialogTitle>
-            <DialogDescription>Fill in the case study details. Attach public files to showcase.</DialogDescription>
+            <DialogTitle>{editId ? "Edit project" : "New project"}</DialogTitle>
+            <DialogDescription>{editId ? "Update the project details." : "Fill in the details for your new project."}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="title">Title</Label>
-                <Input id="title" {...register("title")} />
-                {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+          {editing && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="p-title">Title</Label>
+                <Input id="p-title" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value, slug: editId ? editing.slug : slugify(e.target.value) })} placeholder="Project title" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="category">Category</Label>
-                <Input id="category" placeholder="e.g. AI, EV, Fabrication" {...register("category")} />
-                {errors.category && <p className="text-xs text-destructive">{errors.category.message}</p>}
+                <Label htmlFor="p-slug">Slug</Label>
+                <Input id="p-slug" value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} placeholder="url-friendly-slug" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="tags">Tags (comma separated)</Label>
-                <Input id="tags" placeholder="robotics, vision" {...register("tags")} />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="summary">Summary</Label>
-                <Input id="summary" placeholder="One-line summary" {...register("summary")} />
-                {errors.summary && <p className="text-xs text-destructive">{errors.summary.message}</p>}
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" rows={5} {...register("description")} />
-                {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
+                <Label htmlFor="p-desc">Summary</Label>
+                <Input id="p-desc" value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} placeholder="Short description" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="cover_url">Cover image URL</Label>
-                <Input id="cover_url" placeholder="https://…" {...register("cover_url")} />
-                {errors.cover_url && <p className="text-xs text-destructive">{errors.cover_url.message}</p>}
+                <Label htmlFor="p-content">Content</Label>
+                <Textarea id="p-content" rows={5} value={editing.content} onChange={(e) => setEditing({ ...editing, content: e.target.value })} placeholder="Full case study content…" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="live_url">Live URL</Label>
-                <Input id="live_url" placeholder="https://…" {...register("live_url")} />
+                <Label htmlFor="p-cover">Cover image URL</Label>
+                <Input id="p-cover" value={editing.cover_image} onChange={(e) => setEditing({ ...editing, cover_image: e.target.value })} placeholder="https://…" />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="repo_url">Repo URL</Label>
-                <Input id="repo_url" placeholder="https://…" {...register("repo_url")} />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-tags">Tags (comma-separated)</Label>
+                  <Input id="p-tags" value={editing.tags} onChange={(e) => setEditing({ ...editing, tags: e.target.value })} placeholder="AI, EV, Fabrication" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-tech">Technologies (comma-separated)</Label>
+                  <Input id="p-tech" value={editing.technologies} onChange={(e) => setEditing({ ...editing, technologies: e.target.value })} placeholder="Python, React, Arduino" />
+                </div>
               </div>
-              <div className="flex items-center gap-2 pt-6">
-                <Switch id="featured" {...register("featured")} />
-                <Label htmlFor="featured">Featured project</Label>
+              <div className="flex items-center gap-3">
+                <Switch id="p-featured" checked={editing.is_featured} onCheckedChange={(v) => setEditing({ ...editing, is_featured: v })} />
+                <Label htmlFor="p-featured">Featured project</Label>
               </div>
             </div>
-
-            {/* Attach files */}
-            <div className="space-y-2">
-              <Label>Attach public files</Label>
-              <div className="max-h-40 overflow-y-auto scrollbar-thin rounded-lg border border-border divide-y divide-border">
-                {(files ?? []).filter((f) => f.is_public).length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">No public files available. Upload and mark files public first.</p>
-                ) : (
-                  (files ?? []).filter((f) => f.is_public).map((f: FileRecord) => (
-                    <label key={f.id} className="flex items-center gap-3 p-2.5 hover:bg-muted/40 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedFileIds.includes(f.id)}
-                        onChange={() => toggleFile(f.id)}
-                        className="h-4 w-4 rounded accent-[hsl(var(--primary))]"
-                      />
-                      <span className="text-sm flex-1 truncate">{f.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {editing ? "Save changes" : "Create project"}
-              </Button>
-            </DialogFooter>
-          </form>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {editId ? "Save changes" : "Create project"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
-      <Dialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
-        <DialogContent className="max-w-sm">
+      {/* Delete dialog */}
+      <Dialog open={!!deleteProj} onOpenChange={(open) => !open && setDeleteProj(null)}>
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete project?</DialogTitle>
-            <DialogDescription>
-              This permanently removes <span className="font-medium text-foreground">{confirmDelete?.title}</span>.
-            </DialogDescription>
+            <DialogDescription>This will permanently delete "{deleteProj?.title}". This cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={doDelete}><Trash2 className="h-4 w-4" /> Delete</Button>
+            <Button variant="outline" onClick={() => setDeleteProj(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDelete}><Trash2 className="h-4 w-4" /> Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

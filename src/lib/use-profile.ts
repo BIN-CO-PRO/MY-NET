@@ -5,11 +5,11 @@ import type { Profile } from "./types";
 const DEFAULT_PROFILE: Profile = {
   id: "",
   full_name: "Bizimana Fils",
-  tagline: "Multidisciplinary Technologist · AI Prompt Engineer · EV & Digital Fabrication Specialist",
-  bio: "I'm a technologist based in Kigali, Rwanda, with a background in Automobile Technology. I work at the intersection of AI prompt engineering, electric vehicle diagnostics, and digital fabrication — turning ambitious ideas into real, useful artifacts. From designing EV powertrains and running vehicle diagnostics to operating CNC routers and laser cutters, I build across the digital and physical divide. I care about practical innovation that fits the African context and empowers the next generation of makers.",
-  photo_url: null,
+  title: "Multidisciplinary Technologist • AI Enthusiast • EV & Digital Fabrication Specialist",
+  bio: "I am a technologist based in Kigali, Rwanda, with a background in Automobile Technology. I work at the intersection of AI prompt engineering, electric vehicle diagnostics, and digital fabrication — turning ambitious ideas into real, useful artifacts.",
+  avatar_url: null,
   location: "Kigali, Rwanda",
-  email: "hello@bizimanafils.com",
+  email: "bizimanaideanexuscompany@gmail.com",
   phone: null,
   social_links: {
     linkedin: "https://linkedin.com/in/bizimanafils",
@@ -46,11 +46,7 @@ export function useProfile() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .limit(1)
-        .maybeSingle();
+      const { data } = await supabase.from("profiles").select("*").limit(1).maybeSingle();
       if (!active) return;
       if (data) {
         setProfile({ ...DEFAULT_PROFILE, ...data });
@@ -59,9 +55,7 @@ export function useProfile() {
       }
       setLoading(false);
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   return { profile, loading };

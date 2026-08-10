@@ -1,144 +1,135 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Files, FolderOpen, Eye, EyeOff, TrendingUp, ArrowRight } from "lucide-react";
+import { FolderOpen, FileText, Users, Mail, TrendingUp, Eye, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
-import { useFiles } from "@/lib/use-files";
-import { formatBytes, formatRelative } from "@/lib/utils";
-import {
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-} from "recharts";
+import { formatDateTime } from "@/lib/utils";
+import type { Visitor, ContactMessage } from "@/lib/types";
+
+interface Stats {
+  projects: number;
+  files: number;
+  publicFiles: number;
+  visitors: number;
+  messages: number;
+}
 
 export default function AdminOverview() {
-  const { files } = useFiles();
-  const [projectCount, setProjectCount] = useState<number | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recentVisitors, setRecentVisitors] = useState<Visitor[]>([]);
+  const [recentMessages, setRecentMessages] = useState<ContactMessage[]>([]);
 
   useEffect(() => {
     (async () => {
-      const { count } = await supabase.from("projects").select("*", { count: "exact", head: true });
-      setProjectCount(count ?? 0);
+      const [p, f, v, m] = await Promise.all([
+        supabase.from("projects").select("*", { count: "exact", head: true }),
+        supabase.from("files").select("*", { count: "exact", head: true }),
+        supabase.from("visitors").select("*", { count: "exact", head: true }),
+        supabase.from("contact_messages").select("*", { count: "exact", head: true }),
+      ]);
+      const pubFiles = await supabase.from("files").select("*", { count: "exact", head: true }).eq("is_public", true);
+      setStats({
+        projects: p.count ?? 0,
+        files: f.count ?? 0,
+        publicFiles: pubFiles.count ?? 0,
+        visitors: v.count ?? 0,
+        messages: m.count ?? 0,
+      });
+
+      const { data: vData } = await supabase.from("visitors").select("*").order("created_at", { ascending: false }).limit(5);
+      setRecentVisitors(vData ?? []);
+      const { data: mData } = await supabase.from("contact_messages").select("*").order("created_at", { ascending: false }).limit(5);
+      setRecentMessages(mData ?? []);
     })();
   }, []);
 
-  const publicCount = files?.filter((f) => f.is_public).length ?? 0;
-  const privateCount = files ? files.length - publicCount : 0;
-  const totalSize = files?.reduce((sum, f) => sum + f.size_bytes, 0) ?? 0;
-
-  const stats = [
-    { label: "Total files", value: files?.length ?? "—", icon: Files, hint: `${formatBytes(totalSize)} stored` },
-    { label: "Public files", value: publicCount, icon: Eye, hint: "Visible to everyone" },
-    { label: "Private files", value: privateCount, icon: EyeOff, hint: "Admin only" },
-    { label: "Projects", value: projectCount ?? "—", icon: FolderOpen, hint: "Published case studies" },
+  const cards = [
+    { label: "Projects", value: stats?.projects ?? "—", icon: FolderOpen, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Total Files", value: stats?.files ?? "—", icon: FileText, color: "text-accent", bg: "bg-accent/10" },
+    { label: "Public Files", value: stats?.publicFiles ?? "—", icon: FileText, color: "text-success", bg: "bg-success/10" },
+    { label: "Visitors", value: stats?.visitors ?? "—", icon: Users, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Messages", value: stats?.messages ?? "—", icon: Mail, color: "text-accent", bg: "bg-accent/10" },
   ];
-
-  // Build a simple 7-day uploads chart from file created_at
-  const chartData = (() => {
-    const days: { date: string; label: string; count: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      days.push({ date: key, label: d.toLocaleDateString("en-US", { weekday: "short" }), count: 0 });
-    }
-    const map = new Map(days.map((d) => [d.date, d]));
-    files?.forEach((f) => {
-      const key = f.created_at.slice(0, 10);
-      const entry = map.get(key);
-      if (entry) entry.count += 1;
-    });
-    return days;
-  })();
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Overview</h1>
-        <p className="text-muted-foreground mt-1">A snapshot of your portfolio and file library.</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight">Dashboard Overview</h1>
+        <p className="text-muted-foreground mt-1">A quick look at your platform activity.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {cards.map((c) => (
+          <Card key={c.label} className="glow-card">
             <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{s.label}</p>
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <s.icon className="h-4 w-4" />
-                </div>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${c.bg} ${c.color} mb-3`}>
+                <c.icon className="h-5 w-5" />
               </div>
-              <p className="font-display text-3xl font-bold mt-3">{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{s.hint}</p>
+              <p className="font-display text-2xl font-bold">{c.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{c.label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Recent visitors */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="h-4 w-4 text-primary" /> Uploads — last 7 days
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-base flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Recent visitors</CardTitle>
+          <Button asChild variant="ghost" size="sm" className="group">
+            <Link to="/admin/visitors">View all <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></Link>
+          </Button>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ left: -20, right: 10, top: 5, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="upGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "0.75rem",
-                    fontSize: "0.875rem",
-                  }}
-                  labelStyle={{ color: "hsl(var(--foreground))" }}
-                />
-                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#upGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent files</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {files === null ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : files.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No files yet. Upload some in the File Manager.</p>
+          {recentVisitors.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No visitors recorded yet.</p>
           ) : (
-            <div className="divide-y divide-border">
-              {files.slice(0, 6).map((f) => (
-                <div key={f.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${f.is_public ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                    {f.is_public ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            <div className="space-y-2">
+              {recentVisitors.map((v) => (
+                <div key={v.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-medium">{v.country?.[0] ?? "?"}</div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{v.page}</p>
+                      <p className="text-xs text-muted-foreground">{v.device} · {v.browser}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{f.name}</p>
-                    <p className="text-xs text-muted-foreground">{formatBytes(f.size_bytes)} · {formatRelative(f.created_at)}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${f.is_public ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                    {f.is_public ? "Public" : "Private"}
-                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">{formatDateTime(v.created_at)}</span>
                 </div>
               ))}
             </div>
           )}
-          <Button asChild variant="outline" size="sm" className="mt-4">
-            <Link to="/admin/files">Open File Manager <ArrowRight className="h-4 w-4" /></Link>
-          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Recent messages */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-base flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Recent messages</CardTitle>
+          <Badge variant="secondary">{stats?.messages ?? 0} total</Badge>
+        </CardHeader>
+        <CardContent>
+          {recentMessages.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No messages received yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentMessages.map((m) => (
+                <div key={m.id} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{m.subject}</p>
+                    <p className="text-xs text-muted-foreground">{m.name} · {m.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!m.is_read && <Badge variant="accent">New</Badge>}
+                    <span className="text-xs text-muted-foreground">{formatDateTime(m.created_at)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

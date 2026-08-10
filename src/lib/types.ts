@@ -1,81 +1,71 @@
-export type Profile = {
+export interface Profile {
   id: string;
   full_name: string;
-  tagline: string;
+  title: string;
   bio: string;
-  photo_url: string | null;
-  location: string;
-  email: string;
+  avatar_url: string | null;
+  location: string | null;
+  email: string | null;
   phone: string | null;
   social_links: Record<string, string> | null;
-  certifications: Certification[] | null;
-  skills: SkillGroup[] | null;
-  journey: JourneyItem[] | null;
+  certifications: Certification[];
+  skills: SkillGroup[];
+  journey: JourneyEntry[];
   updated_at: string;
-};
+}
 
-export type Certification = {
+export interface Certification {
   name: string;
   issuer: string;
   year: string;
-};
+}
 
-export type SkillGroup = {
+export interface SkillGroup {
   category: string;
   items: string[];
-};
+}
 
-export type JourneyItem = {
+export interface JourneyEntry {
   year: string;
   title: string;
   description: string;
-};
+}
 
-export type Project = {
+export interface Project {
   id: string;
   slug: string;
   title: string;
-  summary: string;
-  description: string;
-  cover_url: string | null;
-  category: string;
-  tags: string[] | null;
-  featured: boolean;
-  live_url: string | null;
-  repo_url: string | null;
-  file_ids: string[] | null;
+  description: string | null;
+  content: string | null;
+  cover_image: string | null;
+  tags: string[];
+  technologies: string[];
+  is_featured: boolean;
+  status: "draft" | "published";
+  sort_order: number;
   created_at: string;
   updated_at: string;
-};
+}
 
-export type FileRecord = {
+export interface FileRecord {
   id: string;
   name: string;
-  storage_path: string;
-  mime_type: string;
-  size_bytes: number;
-  is_public: boolean;
   description: string | null;
+  original_name: string | null;
+  storage_path: string;
+  file_url: string | null;
+  mime_type: string | null;
+  size: number;
+  is_public: boolean;
   category: string | null;
+  project_id: string | null;
+  download_count: number;
+  uploaded_by: string | null;
   created_at: string;
   updated_at: string;
-};
+}
 
-export type ProjectInput = {
-  slug: string;
-  title: string;
-  summary: string;
-  description: string;
-  cover_url: string | null;
-  category: string;
-  tags: string[];
-  featured: boolean;
-  live_url: string | null;
-  repo_url: string | null;
-  file_ids: string[];
-};
-
-export type Visitor = {
+export interface Visitor {
   id: string;
   ip: string | null;
   country: string | null;
@@ -83,4 +73,14 @@ export type Visitor = {
   browser: string | null;
   page: string;
   created_at: string;
-};
+}
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
